@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # author:lewsan
-import logging
 import sys
 import pymongo
 import tornado.web
@@ -10,8 +9,7 @@ import tornado.options
 import tornado.httpserver
 
 from tornado.options import define, options
-
-from config import MONGO_SERVER
+from tutorial.databases.config import MONGO_SERVER
 
 sys.path.append('..')
 
@@ -22,14 +20,14 @@ def make_parser():
 
 class WordHandler(tornado.web.RequestHandler):
     def get(self, word):
-        # coll = self.application.db.words
-        # word_doc = coll.find_one({"word": word})
-        # if word_doc:
-        #     del word_doc["_id"]
-        #     self.write(word_doc)
-        # else:
-        #     # self.set_status(404)
-        self.write({"error": "word not found"})
+        coll = self.application.db.words
+        word_doc = coll.find_one({"word": word})
+        if word_doc:
+            del word_doc["_id"]
+            self.write(word_doc)
+        else:
+            self.set_status(404)
+            self.write({"error": "word not found"})
 
     @classmethod
     def findOne(coll, spec):
@@ -42,10 +40,10 @@ class WordHandler(tornado.web.RequestHandler):
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
-            (r'/(w+)', WordHandler),
+            (r'/(\w+)', WordHandler),
         ]
-        # conn = pymongo.MongoClient(MONGO_SERVER['host'], MONGO_SERVER['port'])
-        # self.db = conn[MONGO_SERVER['database']]
+        conn = pymongo.MongoClient(MONGO_SERVER['host'], MONGO_SERVER['port'])
+        self.db = conn[MONGO_SERVER['database']]
         tornado.web.Application.__init__(self, handlers)
 
 
