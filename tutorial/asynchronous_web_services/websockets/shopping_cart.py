@@ -4,18 +4,22 @@
 import tornado.web
 import tornado.ioloop
 import tornado.options
+import tornado.websocket
 import tornado.httpserver
 
 from uuid import uuid4
 
 
-class ShoppingCart(object):
+class ShoooingCart(object):
     totalInventory = 10
     callbacks = []
     carts = {}
 
     def register(self, callback):
         self.callbacks.append(callback)
+
+    def unregister(self, callback):
+        self.callbacks.remove(callback)
 
     def moveItemToCart(self, session):
         if session in self.carts:
@@ -30,11 +34,8 @@ class ShoppingCart(object):
         self.notifyCallbacks()
 
     def notifyCallbacks(self):
-        self.callbacks[:] = [c for c in self.callbacks if self.callbackHelper(c)]
-
-    def callbackHelper(self, callback):
-        callback(self.getInventoryCount())
-        return False
+        for callback in self.callbacks:
+            callback(self.getInventoryCount())
 
     def getInventoryCount(self):
         return self.totalInventory - len(self.carts)
@@ -66,28 +67,31 @@ class CartHandler(tornado.web.RequestHandler):
             self.set_status(400)
 
 
-class StatusHandler(tornado.web.RequestHandler):
-    @tornado.web.asynchronous
-    def get(self):
-        self.application.shoppingCart.register(self.on_message)
+class StatusHandler(tornado.websocket.WebSocketHandler):
+    def open(self):
+        self.application.shoppingCart.register(self.callback)
 
-    def on_message(self, count):
-        self.write('{"inventoryCount":"%d"}' % count)
-        self.finish()
+    def on_close(self):
+        self.application.shoppingCart.unregister(self.callback)
+
+    def on_message(self, message):
+        pass
+
+    def callback(self, count):
+        self.write_message('{"inventoryCount":"%d"}' % count)
 
 
 class Application(tornado.web.Application):
     def __init__(self):
-        self.shoppingCart = ShoppingCart()
+        self.shoppingCart = ShoooingCart()
         handlers = [
             (r'/', DetailHandler),
             (r'/cart', CartHandler),
             (r'/cart/status', StatusHandler),
         ]
-
         settings = {
             'template_path': 'templates',
-            'static_path': 'static'
+            'static_path': 'static',
         }
         tornado.web.Application.__init__(self, handlers, **settings)
 
